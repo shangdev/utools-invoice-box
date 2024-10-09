@@ -1,0 +1,18 @@
+{
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "name": "your plugin ID",
+  "version": "1.0.0",
+  "pluginName": "发票助手",
+  "description": "发票解析、导出为excel",
+  "author": "rateltalk",
+  "homepage": "https://github.com/shangdev",
+  "features": [
+    {
+      "code": "发票",
+      "explain": "发票文件识别、导出为excel",
+      "cmds": ["fp", "发票", "发票助手", "发票整理", "发票导出"]
+    }
+  ]
+}
