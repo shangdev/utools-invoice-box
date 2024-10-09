@@ -4,7 +4,7 @@
       <div id="uploadInfo" v-show="!hasFiles" @click="triggerFileInput">
         <div class="upload-icon">&#x2601;</div>
         <p>点击此处选择 或 拖动 发票文件到应用内进行解析</p>
-        <p>支持 PDF、PNG、JPG、JPEG 格式发票</p>
+        <p>支持 PDF、PNG、JPG、JPEG、BMP、OFD 格式发票</p>
       </div>
       <table id="fileTable" v-show="hasFiles">
         <colgroup>
@@ -12,9 +12,9 @@
           <col style="width: 15%" />
           <col style="width: 15%" />
           <col style="width: 12%" />
-          <col style="width: 12%" />
+          <col style="width: 11%" />
           <col style="width: 10%" />
-          <col style="width: 8%" />
+          <col style="width: 9%" />
           <col style="width: 6%" />
         </colgroup>
         <thead>
@@ -103,7 +103,7 @@ const triggerFileInput = () => {
       filters: [
         {
           name: "自定义文件",
-          extensions: ["jpg", "png", "jpeg", "webp", "pdf"],
+          extensions: ["jpg", "png", "jpeg", "webp", "pdf", "bmp", "ofd"],
         },
       ],
       properties: ["multiSelections"],

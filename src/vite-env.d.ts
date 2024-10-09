@@ -36,6 +36,20 @@ interface OpenFileOption {
   securityScopedBookmarks?: boolean;
 }
 
+interface OptionsData {
+  ofd_file?: string;
+  pdf_file?: string;
+  image?: string;
+  verify_parameter: boolean;
+}
+
+interface Options {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  data: OptionsData;
+}
+
 interface Window {
   preload: {
     /**

@@ -94,12 +94,13 @@ async function openFile(options: OpenFileOption): Promise<Array<{ name: string; 
 
 /**
  * 识别发票
- * @param file 文件
+ * @param name 文件名
+ * @param path 文件路径
  * @returns 识别结果
  */
 const recognizeInvoice = async (name: String, path: String): Promise<Result> => {
   // 请求参数
-  let options = {
+  let options: Options = {
     method: "POST",
     url: "https://aip.baidubce.com/rest/2.0/ocr/v1/multiple_invoice?access_token=" + (await getAccessToken()),
     headers: {
@@ -107,9 +108,6 @@ const recognizeInvoice = async (name: String, path: String): Promise<Result> => 
       Accept: "application/json",
     },
     data: {
-      image: "",
-      pdf_file: "",
-      ofd_file: "",
       verify_parameter: true,
     },
   };
@@ -136,7 +134,7 @@ const recognizeInvoice = async (name: String, path: String): Promise<Result> => 
 
       invoices.push({
         invoiceType: getInvoiceType(data.invoice_type[0].word),
-        code: data.invoice_code[0].word,
+        code: data.invoice_code[0]?.word,
         number: data.invoice_num[0].word,
         amount: data.total_amount[0].word,
         date: data.invoice_date[0].word,
