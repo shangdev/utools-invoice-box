@@ -53,6 +53,20 @@ function getAccessToken() {
  */
 function getInvoiceType(type: string): string {
   const invoiceTypes: { [key: string]: string } = {
+    vat_invoice: "增值税发票",
+    taxi_receipt: "出租车票",
+    train_ticket: "火车票",
+    quota_invoice: "定额发票",
+    air_ticket: "飞机行程单",
+    printed_invoice: "机打发票",
+    bus_ticket: "汽车票",
+    toll_invoice: "过路过桥费发票",
+    ferry_ticket: "船票",
+    taxi_online_ticket: "网约车行程单",
+    limit_invoice: "限额发票",
+    shopping_receipt: "购物小票",
+    pos_invoice: "POS小票",
+    others: "其他",
     special_vat_invoice: "增值税专用发票",
     elec_special_vat_invoice: "增值税电子专票",
     normal_invoice: "增值税普通发票",
@@ -108,7 +122,7 @@ const recognizeInvoice = async (name: String, path: String): Promise<Result> => 
       Accept: "application/json",
     },
     data: {
-      verify_parameter: true,
+      verify_parameter: false,
     },
   };
 
@@ -128,16 +142,79 @@ const recognizeInvoice = async (name: String, path: String): Promise<Result> => 
     const invoices: any[] = [];
     result.data.words_result.forEach((item: any) => {
       const data = item.result;
-      if (item.type === "others") {
+      if (item.type === "others" || item.type === "limit_invoice" || item.type === "shopping_receipt" || item.type === "pos_invoice") {
         throw new Error("不支持的发票文件类型");
       }
 
+      let code = data.InvoiceCode?.[0].word;
+      let number = data.InvoiceNum?.[0].word;
+      let amount = data.AmountInFiguers?.[0].word;
+      let date = data.InvoiceDate?.[0].word;
+      let invoiceType = getInvoiceType(item.type);
+      switch (item.type) {
+        case "vat_invoice":
+        case "roll_normal_invoice":
+        case "printed_invoice":
+          invoiceType = data.InvoiceType[0].word;
+          break;
+        case "taxi_receipt":
+          date = data.Date[0].word;
+          amount = data.TotalFare[0].word;
+          break;
+        case "train_ticket":
+          number = data.invoice_num[0].word;
+          date = data.invoice_date[0].word;
+          amount = data.ticket_rates[0].word;
+          break;
+        case "quota_invoice":
+          code = data.invoice_code[0].word;
+          number = data.invoice_num[0].word;
+          amount = data.invoice_rate[0].word;
+          break;
+        case "air_ticket":
+          number = data.ticket_number[0].word;
+          date = data.date[0].word;
+          amount = data.ticket_rates[0].word;
+          break;
+        case "bus_ticket":
+          date = data.InvoiceTime[0].word;
+          amount = data.Amount[0].word;
+          break;
+        case "toll_invoice":
+          date = data.OutDate[0].word;
+          amount = data.TotalAmount[0].word;
+          break;
+        case "ferry_ticket":
+          invoiceType = data.InvoiceType[0].word;
+          date = data.Date[0].word;
+          amount = data.Amount[0].word;
+          break;
+        case "motor_vehicle_invoice":
+          code = data["printed-daima"][0].word;
+          number = data["printed-haoma"][0].word;
+          date = data.date[0].word;
+          amount = data["price-tax-small"][0].word;
+          break;
+        case "used_vehicle_invoice":
+          code = data.invoice_code[0].word;
+          number = data.invoice_num[0].word;
+          date = data.date[0].word;
+          amount = data.small_price[0].word;
+          break;
+        case "taxi_online_ticket":
+          date = data.application_date[0].word;
+          amount = data.total_fare[0].word;
+          break;
+        default:
+          break;
+      }
+
       invoices.push({
-        invoiceType: getInvoiceType(data.invoice_type[0].word),
-        code: data.invoice_code[0]?.word,
-        number: data.invoice_num[0].word,
-        amount: data.total_amount[0].word,
-        date: data.invoice_date[0].word,
+        invoiceType,
+        code,
+        number,
+        amount,
+        date,
       });
     });
 

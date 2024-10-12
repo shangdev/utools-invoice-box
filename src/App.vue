@@ -40,13 +40,18 @@
             <td :class="getStatusClass(file.status)">{{ file.status }}</td>
             <td class="delete-action" @click="removeFile(index)">删除</td>
           </tr>
+          <tr class="total-row">
+            <td colspan="4">合计金额</td>
+            <td>{{ calculateTotalAmount() }}</td>
+            <td colspan="3"></td>
+          </tr>
         </tbody>
       </table>
     </div>
     <div class="button-group">
       <button class="primary" @click="openSettings">设置</button>
       <button class="secondary" @click="clearFiles">清空</button>
-      <button class="primary" @click="triggerFileInput">继续添加</button>
+      <button class="primary" @click="triggerFileInput">{{ hasFiles ? "继续添加" : "上传文件" }}</button>
       <button class="primary" @click="parseFiles">一键识别</button>
       <button class="primary" @click="downloadExcel">另存为Excel</button>
     </div>
@@ -100,13 +105,13 @@ const triggerFileInput = () => {
   window.preload
     .openFile({
       title: "选择发票",
-      filters: [
-        {
-          name: "自定义文件",
-          extensions: ["jpg", "png", "jpeg", "webp", "pdf", "bmp", "ofd"],
-        },
-      ],
-      properties: ["multiSelections"],
+      // filters: [
+      //   {
+      //     name: "自定义文件",
+      //     extensions: ["jpg", "png", "jpeg", "webp", "pdf", "bmp", "ofd"],
+      //   },
+      // ],
+      properties: ["openFile", "multiSelections"],
     })
     .then((data) => {
       Array.from(data).forEach((file) => {
@@ -158,8 +163,8 @@ const parseFiles = async () => {
 };
 
 const downloadExcel = async () => {
-  const data = files.value.map((file, index) => ({
-    序号: index + 1,
+  const fileData = files.value.map((file, index) => ({
+    序号: (index + 1).toString(),
     文件名称: file.name,
     发票类型: file.InvoiceType || "-",
     发票代码: file.InvoiceCode || "-",
@@ -168,8 +173,19 @@ const downloadExcel = async () => {
     开票日期: file.InvoiceDate || "-",
   }));
 
+  // 添加合计行
+  fileData.push({
+    序号: "",
+    文件名称: "合计金额",
+    发票类型: "",
+    发票代码: "",
+    发票号码: "",
+    发票金额: parseFloat(calculateTotalAmount()),
+    开票日期: "",
+  });
+
   try {
-    await window.preload.exportExcel(data);
+    await window.preload.exportExcel(fileData);
   } catch (error) {
     const err = error as Error;
     showError.value = true;
@@ -214,6 +230,11 @@ const getStatusClass = (status: string) => {
   }
 };
 
+const calculateTotalAmount = (): string => {
+  const total = files.value.reduce((sum, file) => sum + parseFloat(file.TotalAmount || "0"), 0);
+  return total.toFixed(2);
+};
+
 onMounted(() => {
   const dropZone = document.getElementById("dropZone");
   if (dropZone) {
@@ -245,7 +266,7 @@ onMounted(() => {
 <style scoped>
 .container {
   width: 100%;
-  height: 100%;
+  height: 100vh; /* 使用视口高度 */
   display: flex;
   flex-direction: column;
   background-color: white;
@@ -253,6 +274,8 @@ onMounted(() => {
 
 .content-area {
   flex-grow: 1;
+  overflow-y: auto; /* 允许内容区域滚动 */
+  padding-bottom: 74px; /* 根据按钮组的高度调整 */
 }
 
 #uploadInfo {
@@ -304,12 +327,17 @@ p {
 }
 
 .button-group {
+  position: fixed; /* 固定定位 */
+  bottom: 0; /* 固定在底部 */
+  left: 0;
+  right: 0;
   padding: 20px 0;
   background-color: #f0f0f0;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
 }
 
 button {
@@ -394,5 +422,12 @@ button {
   margin-left: 0;
 }
 
-/* ... 其他样式保持不变 ... */
+.total-row {
+  font-weight: bold;
+  background-color: #f0f0f0;
+}
+
+.total-row td {
+  border-top: 2px solid #ddd;
+}
 </style>
