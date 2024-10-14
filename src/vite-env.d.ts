@@ -2,9 +2,9 @@
 
 interface FileItem {
   name: string;
-  path: string;
-  imgBase64: string;
   status: string;
+  path?: string;
+  imgBase64?: string;
   InvoiceType?: string;
   InvoiceNum?: string;
   TotalAmount?: string;

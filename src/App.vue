@@ -140,7 +140,7 @@ const parseFiles = async () => {
     fileItem.status = "解析中";
     try {
       // 读取文件内容
-      const result: Result = await window.preload.recognizeInvoice(fileItem.name, fileItem.path, fileItem.imgBase64);
+      const result: Result = await window.preload.recognizeInvoice(fileItem.name, fileItem.path || "", fileItem.imgBase64 || "");
 
       // 检查 error_code 是否存在
       if ("error_code" in result) {
