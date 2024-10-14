@@ -110,9 +110,10 @@ async function openFile(options: OpenFileOption): Promise<Array<{ name: string; 
  * 识别发票
  * @param name 文件名
  * @param path 文件路径
+ * @param imgBase64 截图base64
  * @returns 识别结果
  */
-const recognizeInvoice = async (name: String, path: String): Promise<Result> => {
+const recognizeInvoice = async (name: String, path: String, imgBase64: string): Promise<Result> => {
   // 请求参数
   let options: Options = {
     method: "POST",
@@ -126,15 +127,19 @@ const recognizeInvoice = async (name: String, path: String): Promise<Result> => 
     },
   };
 
-  const extension = extname(name).toLowerCase();
-  if (extension === ".pdf") {
-    options.data.pdf_file = getFileContentAsBase64(path);
-  } else if (extension === ".jpg" || extension === ".png" || extension === ".jpeg" || extension === ".bmp") {
-    options.data.image = getFileContentAsBase64(path);
-  } else if (extension === ".ofd") {
-    options.data.ofd_file = getFileContentAsBase64(path);
+  if (imgBase64) {
+    options.data.image = imgBase64;
   } else {
-    throw new Error("不支持的文件类型：" + extension);
+    const extension = extname(name).toLowerCase();
+    if (extension === ".pdf") {
+      options.data.pdf_file = getFileContentAsBase64(path);
+    } else if (extension === ".jpg" || extension === ".png" || extension === ".jpeg" || extension === ".bmp") {
+      options.data.image = getFileContentAsBase64(path);
+    } else if (extension === ".ofd") {
+      options.data.ofd_file = getFileContentAsBase64(path);
+    } else {
+      throw new Error("不支持的文件类型：" + extension);
+    }
   }
 
   let result = await axios(options);
@@ -260,8 +265,8 @@ window.preload = {
   openFile: (options: OpenFileOption) => {
     return openFile(options);
   },
-  recognizeInvoice: (name: string, path: string): Promise<Result> => {
-    return recognizeInvoice(name, path);
+  recognizeInvoice: (name: string, path: string, imgBase64: string): Promise<Result> => {
+    return recognizeInvoice(name, path, imgBase64);
   },
   exportExcel: (data: any) => {
     return exportExcel(data);

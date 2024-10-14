@@ -3,6 +3,7 @@
 interface FileItem {
   name: string;
   path: string;
+  imgBase64: string;
   status: string;
   InvoiceType?: string;
   InvoiceNum?: string;
@@ -64,7 +65,7 @@ interface Window {
      * @param file 文件
      * @returns 识别结果
      */
-    recognizeInvoice: (name: string, path: string) => Promise<Result>;
+    recognizeInvoice: (name: string, path: string, imgBase64: string) => Promise<Result>;
     exportExcel: (data: any[]) => Promise<ArrayBuffer>;
     getSettings: () => Promise<Settings>;
     saveSettings: (settings: Settings) => Promise<void>;

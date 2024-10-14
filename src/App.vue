@@ -23,7 +23,7 @@
             <th>发票类型</th>
             <th>发票代码</th>
             <th>发票号码</th>
-            <th>发票金额</th>
+            <th>价税合计</th>
             <th>开票日期</th>
             <th>状态</th>
             <th>操作</th>
@@ -52,6 +52,7 @@
       <button class="primary" @click="openSettings">设置</button>
       <button class="secondary" @click="clearFiles">清空</button>
       <button class="primary" @click="triggerFileInput">{{ hasFiles ? "继续添加" : "上传文件" }}</button>
+      <button class="primary" @click="captureScreen">截图上传</button>
       <button class="primary" @click="parseFiles">一键识别</button>
       <button class="primary" @click="downloadExcel">另存为Excel</button>
     </div>
@@ -139,7 +140,7 @@ const parseFiles = async () => {
     fileItem.status = "解析中";
     try {
       // 读取文件内容
-      const result: Result = await window.preload.recognizeInvoice(fileItem.name, fileItem.path);
+      const result: Result = await window.preload.recognizeInvoice(fileItem.name, fileItem.path, fileItem.imgBase64);
 
       // 检查 error_code 是否存在
       if ("error_code" in result) {
@@ -169,7 +170,7 @@ const downloadExcel = async () => {
     发票类型: file.InvoiceType || "-",
     发票代码: file.InvoiceCode || "-",
     发票号码: file.InvoiceNum || "-",
-    发票金额: parseFloat(file.TotalAmount || "0"),
+    价税合计: parseFloat(file.TotalAmount || "0"),
     开票日期: file.InvoiceDate || "-",
   }));
 
@@ -180,7 +181,7 @@ const downloadExcel = async () => {
     发票类型: "",
     发票代码: "",
     发票号码: "",
-    发票金额: parseFloat(calculateTotalAmount()),
+    价税合计: parseFloat(calculateTotalAmount()),
     开票日期: "",
   });
 
@@ -233,6 +234,14 @@ const getStatusClass = (status: string) => {
 const calculateTotalAmount = (): string => {
   const total = files.value.reduce((sum, file) => sum + parseFloat(file.TotalAmount || "0"), 0);
   return total.toFixed(2);
+};
+
+const captureScreen = () => {
+  window.utools.hideMainWindow();
+  window.utools.screenCapture((imgBase64: string) => {
+    window.utools.showMainWindow();
+    files.value.push({ name: "截图_" + Math.floor(Date.now() / 1000), status: "待解析", imgBase64: imgBase64 });
+  });
 };
 
 onMounted(() => {

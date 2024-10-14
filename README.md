@@ -1,6 +1,8 @@
 # ai-invoice
 
-本插件基于`https://github.com/QC2168/utools-plugin-template.git` `Utools`插件开发模板
+本插件基于 `https://github.com/QC2168/utools-plugin-template.git` 插件开发模板
+
+99% 的代码都是由 Cursor 辅助完成
 
 ## ✨ 特性
 
