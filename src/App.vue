@@ -53,7 +53,23 @@
       <button class="secondary" @click="clearFiles">清空</button>
       <button class="primary" @click="triggerFileInput">{{ hasFiles ? "继续添加" : "上传文件" }}</button>
       <button class="primary" @click="captureScreen">截图上传</button>
-      <button class="primary" @click="parseFiles">一键识别</button>
+
+      <!-- 修改一键识别按钮和更多选项 -->
+      <div class="split-button-container">
+        <div v-if="showMoreOptions" class="more-options">
+          <button v-for="(item, index) in settings.iOCR" :key="index" class="option" @click="parseFiles(item.templateSign)">
+            {{ item.templateName }}
+          </button>
+          <button class="option" @click="addCustomIOCR">添加自定义iOCR</button>
+        </div>
+        <div class="split-button">
+          <button class="primary split-main" @click="parseFiles('')">一键识别</button>
+          <button class="primary split-toggle" @click="toggleMoreOptions">
+            <span class="arrow-down">▼</span>
+          </button>
+        </div>
+      </div>
+
       <button class="primary" @click="downloadExcel">另存为Excel</button>
     </div>
   </div>
@@ -62,6 +78,7 @@
   <div v-if="showSettings" class="modal">
     <div class="modal-content">
       <h2>设置</h2>
+      <p class="red-text">请参考 https://ai.baidu.com/ai-doc/OCR/dk3iqnq51 获取 API Key 和 Secret Key</p>
       <div class="form-group">
         <label for="apiKey">API Key:</label>
         <input type="text" id="apiKey" v-model="settings.apiKey" />
@@ -73,6 +90,29 @@
       <div>
         <button class="primary" @click="saveSettings">保存</button>
         <button class="secondary" @click="closeSettings">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加自定义iOCR模态框 -->
+  <div v-if="showCustomIOCRModal" class="modal">
+    <div class="modal-content">
+      <h2>添加自定义iOCR</h2>
+      <p class="red-text">
+        请参考 https://ai.baidu.com/ai-doc/OCR/Hk3h7y9m5
+        添加自定义模板，模板字段必须包含：invoice_code（发票代码）、invoice_num（发票号码）、total_amount（价税合计）、invoice_date（开票日期）、check_code（校验码）
+      </p>
+      <div class="form-group">
+        <label for="templateName">模板名称:</label>
+        <input type="text" id="templateName" v-model="newTemplateName" />
+      </div>
+      <div class="form-group">
+        <label for="templateId">模板ID:</label>
+        <input type="text" id="templateId" v-model="newTemplateId" />
+      </div>
+      <div>
+        <button class="primary" @click="saveCustomIOCR">保存</button>
+        <button class="secondary" @click="closeCustomIOCRModal">取消</button>
       </div>
     </div>
   </div>
@@ -97,10 +137,15 @@ const showSettings = ref(false);
 const settings = ref<Settings>({
   secretKey: "",
   apiKey: "",
+  iOCR: [],
 });
 
 const showError = ref(false);
 const errorMessage = ref("");
+const showMoreOptions = ref(false);
+const showCustomIOCRModal = ref(false);
+const newTemplateName = ref("");
+const newTemplateId = ref("");
 
 const triggerFileInput = () => {
   window.preload
@@ -129,18 +174,23 @@ const clearFiles = () => {
   files.value = [];
 };
 
-const parseFiles = async () => {
+const parseFiles = async (templateSign: string = "") => {
+  if (templateSign) {
+    toggleMoreOptions();
+  }
+
   if (files.value.length === 0) {
     showError.value = true;
     errorMessage.value = "请上传发票文件";
     return;
   }
+
   for (let fileItem of files.value) {
     if (fileItem.status === "解析完成") continue;
     fileItem.status = "解析中";
     try {
       // 读取文件内容
-      const result: Result = await window.preload.recognizeInvoice(fileItem.name, fileItem.path || "", fileItem.imgBase64 || "");
+      const result: Result = await window.preload.recognizeInvoice(fileItem.name, fileItem.path || "", fileItem.imgBase64 || "", templateSign);
 
       // 检查 error_code 是否存在
       if ("error_code" in result) {
@@ -197,7 +247,11 @@ const downloadExcel = async () => {
 const openSettings = async () => {
   // 从 utools 获取当前设置
   const currentSettings = await window.preload.getSettings();
-  settings.value = currentSettings;
+  settings.value = {
+    secretKey: currentSettings.secretKey,
+    apiKey: currentSettings.apiKey,
+    iOCR: currentSettings.iOCR || [],
+  };
   showSettings.value = true;
 };
 
@@ -244,7 +298,68 @@ const captureScreen = () => {
   });
 };
 
-onMounted(() => {
+const toggleMoreOptions = () => {
+  showMoreOptions.value = !showMoreOptions.value;
+};
+
+const addCustomIOCR = () => {
+  showCustomIOCRModal.value = true;
+  newTemplateName.value = "";
+  newTemplateId.value = "";
+  showMoreOptions.value = false;
+};
+
+const closeCustomIOCRModal = () => {
+  showCustomIOCRModal.value = false;
+  newTemplateName.value = "";
+  newTemplateId.value = "";
+};
+
+const saveCustomIOCR = async () => {
+  try {
+    // 创建一个新的 iOCR 项
+    const newIOCR = {
+      templateName: newTemplateName.value,
+      templateSign: newTemplateId.value,
+    };
+
+    // 从 utools 获取当前设置
+    const currentSettings = await window.preload.getSettings();
+    const updatedSettings = {
+      secretKey: currentSettings.secretKey,
+      apiKey: currentSettings.apiKey,
+      iOCR: currentSettings.iOCR ? [...currentSettings.iOCR, newIOCR] : [newIOCR],
+    };
+
+    // 保存更新后的设置
+    await window.preload.saveSettings(updatedSettings);
+
+    // 更新 settings 引用
+    settings.value = updatedSettings;
+
+    showCustomIOCRModal.value = false;
+    showMoreOptions.value = false;
+    newTemplateName.value = "";
+    newTemplateId.value = "";
+  } catch (error) {
+    const err = error as Error;
+    showError.value = true;
+    errorMessage.value = `保存设置失败: ${err.message}`;
+  }
+};
+
+onMounted(async () => {
+  try {
+    const storedSettings = await window.preload.getSettings();
+    settings.value = {
+      secretKey: storedSettings.secretKey || "",
+      apiKey: storedSettings.apiKey || "",
+      iOCR: storedSettings.iOCR || [],
+    };
+  } catch (error) {
+    console.error("初始化设置参数时出错:", error);
+  }
+
   const dropZone = document.getElementById("dropZone");
   if (dropZone) {
     dropZone.addEventListener("dragover", (e) => {
@@ -438,5 +553,66 @@ button {
 
 .total-row td {
   border-top: 2px solid #ddd;
+}
+
+.split-button-container {
+  position: relative;
+  display: inline-block;
+  margin: 0 5px;
+}
+
+.split-button {
+  display: flex;
+}
+
+.split-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-right: 0;
+}
+
+.split-toggle {
+  margin-left: 0;
+  padding: 8px 8px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid #c2c7ed;
+}
+
+.arrow-down {
+  font-size: 10px;
+}
+
+.more-options {
+  width: max-content;
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  bottom: 100%;
+  left: 5px;
+  right: 0;
+  margin-bottom: 5px;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  margin: 0;
+}
+
+.option:hover {
+  background-color: #f0f0f0;
+}
+
+.red-text {
+  color: red;
 }
 </style>

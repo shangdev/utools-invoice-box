@@ -113,11 +113,13 @@ async function openFile(options: OpenFileOption): Promise<Array<{ name: string; 
  * @param imgBase64 截图base64
  * @returns 识别结果
  */
-const recognizeInvoice = async (name: String, path: String, imgBase64: string): Promise<Result> => {
+const recognizeInvoice = async (name: String, path: String, imgBase64: string, templateSign: string = ""): Promise<Result> => {
   // 请求参数
   let options: Options = {
     method: "POST",
-    url: "https://aip.baidubce.com/rest/2.0/ocr/v1/multiple_invoice?access_token=" + (await getAccessToken()),
+    url: templateSign
+      ? "https://aip.baidubce.com/rest/2.0/solution/v1/iocr/recognise/finance?access_token=" + (await getAccessToken())
+      : "https://aip.baidubce.com/rest/2.0/ocr/v1/multiple_invoice?access_token=" + (await getAccessToken()),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
@@ -126,6 +128,10 @@ const recognizeInvoice = async (name: String, path: String, imgBase64: string): 
       verify_parameter: false,
     },
   };
+
+  if (templateSign) {
+    options.data.templateSign = templateSign;
+  }
 
   if (imgBase64) {
     options.data.image = imgBase64;
@@ -224,6 +230,30 @@ const recognizeInvoice = async (name: String, path: String, imgBase64: string): 
     });
 
     return invoices[0];
+  } else if (result.data.data.ret) {
+    let code = "";
+    let number = "";
+    let amount = "";
+    let date = "";
+    result.data.data.ret.map((item: any) => {
+      if (item.word_name === "invoice_code") {
+        code = item.word;
+      } else if (item.word_name === "invoice_num") {
+        number = item.word;
+      } else if (item.word_name === "total_amount") {
+        amount = item.word;
+      } else if (item.word_name === "invoice_date") {
+        date = item.word;
+      }
+    });
+
+    return {
+      invoiceType: result.data.data.templateName,
+      code,
+      number,
+      amount,
+      date,
+    };
   }
 
   throw new Error(result.data.error_msg || "识别失败");
@@ -265,20 +295,21 @@ window.preload = {
   openFile: (options: OpenFileOption) => {
     return openFile(options);
   },
-  recognizeInvoice: (name: string, path: string, imgBase64: string): Promise<Result> => {
-    return recognizeInvoice(name, path, imgBase64);
+  recognizeInvoice: (name: string, path: string, imgBase64: string, templateSign: string): Promise<Result> => {
+    return recognizeInvoice(name, path, imgBase64, templateSign);
   },
   exportExcel: (data: any) => {
     return exportExcel(data);
   },
   getSettings: async () => {
-    return utools.dbStorage.getItem("settings") || { secretKey: "", apiKey: "" };
+    return utools.dbStorage.getItem("settings") || { secretKey: "", apiKey: "", iOCR: [] };
   },
   saveSettings: async (settings: Settings) => {
     // 确保传递的对象是一个简单的 JSON 对象
     const settingsToSave = {
       apiKey: settings.apiKey,
       secretKey: settings.secretKey,
+      iOCR: settings.iOCR,
     };
     utools.dbStorage.setItem("settings", settingsToSave);
   },

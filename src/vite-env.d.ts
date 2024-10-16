@@ -25,6 +25,7 @@ interface Result {
 interface Settings {
   apiKey: string;
   secretKey: string;
+  iOCR: { templateName: string; templateSign: string }[];
 }
 
 interface OpenFileOption {
@@ -41,7 +42,8 @@ interface OptionsData {
   ofd_file?: string;
   pdf_file?: string;
   image?: string;
-  verify_parameter: boolean;
+  verify_parameter?: boolean;
+  templateSign?: string;
 }
 
 interface Options {
@@ -63,9 +65,10 @@ interface Window {
     /**
      * 识别发票
      * @param file 文件
+     * @param templateSign iOCR模板ID
      * @returns 识别结果
      */
-    recognizeInvoice: (name: string, path: string, imgBase64: string) => Promise<Result>;
+    recognizeInvoice: (name: string, path: string, imgBase64: string, templateSign: string) => Promise<Result>;
     exportExcel: (data: any[]) => Promise<ArrayBuffer>;
     getSettings: () => Promise<Settings>;
     saveSettings: (settings: Settings) => Promise<void>;
