@@ -157,10 +157,10 @@ const recognizeInvoice = async (name: String, path: String, imgBase64: string, t
         throw new Error("不支持的发票文件类型");
       }
 
-      let code = data.InvoiceCode?.[0].word;
-      let number = data.InvoiceNum?.[0].word;
-      let amount = data.AmountInFiguers?.[0].word;
-      let date = data.InvoiceDate?.[0].word;
+      let code = data.InvoiceCode?.[0]?.word;
+      let number = data.InvoiceNum?.[0]?.word;
+      let amount = data.AmountInFiguers?.[0]?.word;
+      let date = data.InvoiceDate?.[0]?.word;
       let invoiceType = getInvoiceType(item.type);
       switch (item.type) {
         case "vat_invoice":
