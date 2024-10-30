@@ -261,7 +261,17 @@ const closeSettings = () => {
 
 const saveSettings = async () => {
   try {
-    await window.preload.saveSettings(settings.value);
+    // 创建一个新的纯数据对象，只包含需要的属性
+    const settingsToSave = {
+      secretKey: settings.value.secretKey,
+      apiKey: settings.value.apiKey,
+      iOCR: settings.value.iOCR.map((item) => ({
+        templateName: item.templateName,
+        templateSign: item.templateSign,
+      })),
+    };
+
+    await window.preload.saveSettings(settingsToSave);
     showSettings.value = false;
   } catch (error) {
     const err = error as Error;

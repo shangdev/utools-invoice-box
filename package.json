@@ -16,6 +16,7 @@
     "@qc2168/vite-plugin-utools": "^1.5.1",
     "axios": "^1.7.7",
     "mime-types": "^2.1.35",
+    "openai": "^4.68.2",
     "vue": "^3.5.8",
     "xlsx": "^0.18.5"
   },

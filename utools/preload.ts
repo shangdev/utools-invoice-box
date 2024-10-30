@@ -6,8 +6,6 @@ const XLSX = require("xlsx");
 const mime = require("mime-types");
 const axios = require("axios");
 
-// https://www.u.tools/docs/developer/api.html#%E7%AA%97%E5%8F%A3%E4%BA%A4%E4%BA%92
-
 /**
  * 获取文件base64编码
  * @param string  path 文件路径
