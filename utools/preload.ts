@@ -1,10 +1,33 @@
 // 您可以在进行窗口交互
 // utools文档
-const { readFileSync, writeFileSync } = require("fs");
+const { readFileSync, writeFileSync, existsSync, mkdirSync } = require("fs");
 const { basename, extname, join } = require("path");
 const XLSX = require("xlsx");
 const mime = require("mime-types");
 const axios = require("axios");
+const { OpenAI } = require("openai");
+const Imap = require("node-imap");
+const MailParser = require("mailparser-mit").MailParser;
+
+// https://www.u.tools/docs/developer/api.html#%E7%AA%97%E5%8F%A3%E4%BA%A4%E4%BA%92
+
+const openai = new OpenAI({
+  apiKey: "xxx",
+  dangerouslyAllowBrowser: true,
+});
+
+/**
+ * 使用 OpenAI 的 GPT-4o-mini 模型进行对话
+ * @param prompt 对话内容
+ * @returns 对话结果
+ */
+async function llm(prompt: string) {
+  const chatCompletion = await openai.chat.completions.create({
+    messages: [{ role: "user", content: prompt }],
+    model: "gpt-4o-mini",
+  });
+  return chatCompletion.choices[0].message.content;
+}
 
 /**
  * 获取文件base64编码
@@ -289,6 +312,117 @@ const exportExcel = (data: any) => {
   return excelBuffer;
 };
 
+/**
+ * 从邮箱获取附件
+ * @param config 邮箱配置
+ * @returns 附件列表
+ */
+const fetchEmailAttachments = async (config: Settings["email"]): Promise<Array<{ name: string; path: string }>> => {
+  return new Promise((resolve, reject) => {
+    const imap = new Imap({
+      user: config.address,
+      password: config.password,
+      host: config.imapServer,
+      port: parseInt(config.port),
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false },
+    });
+
+    const attachments: Array<{ name: string; path: string }> = [];
+
+    imap.once("ready", () => {
+      imap.getBoxes("", (err: Error | null, res: any) => {
+        console.log(Object.keys(res));
+      });
+
+      imap.openBox("INBOX", true, function (err: Error | null, box: any) {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // 搜索最近7天的邮件
+        const date = new Date();
+        date.setDate(date.getDate() - 15);
+        let searchParam = ["ALL", ["SINCE", date.toISOString()]];
+        imap.search(searchParam, (err: Error | null, results: number[]) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          if (!results.length) {
+            imap.end();
+            resolve(attachments);
+            return;
+          }
+
+          const f = imap.fetch(results, {
+            bodies: [""],
+            struct: true,
+          });
+
+          f.on("message", (msg: any) => {
+            let mailParser = new MailParser({});
+            msg.on("body", (stream: any) => {
+              stream.pipe(mailParser);
+
+              //邮件头内容
+              mailParser.on("headers", (headers: any) => {
+                console.log("邮件主题: " + headers.subject);
+              });
+
+              // 邮件内容
+              mailParser.on("end", async (mail: any) => {
+                if (mail.attachments && mail.attachments.length > 0) {
+                  const tempDir = join(utools.getPath("temp"), "invoice-attachments");
+                  if (!existsSync(tempDir)) {
+                    mkdirSync(tempDir, { recursive: true });
+                  }
+
+                  console.log(mail.attachments);
+                  mail.attachments.forEach((data: any) => {
+                    if (data.contentType !== "application/pdf") {
+                      return;
+                    }
+
+                    const filePath = join(tempDir, `${mail.subject}_${data.fileName}`.replace(/[\x00\/\\:*?"<>|]/g, "_"));
+                    writeFileSync(filePath, data.content, data.transferEncoding);
+
+                    attachments.push({
+                      name: data.fileName,
+                      path: filePath,
+                    });
+                  });
+                }
+              });
+            });
+          });
+
+          f.once("error", (err: Error) => {
+            reject(err);
+          });
+
+          f.once("end", () => {
+            imap.end();
+            resolve(attachments);
+          });
+        });
+      });
+    });
+
+    imap.once("error", (err: Error) => {
+      reject(err);
+    });
+
+    imap.once("end", () => {
+      console.log("IMAP 连接已结束");
+    });
+
+    imap.connect();
+  });
+};
+
 window.preload = {
   openFile: (options: OpenFileOption) => {
     return openFile(options);
@@ -300,7 +434,7 @@ window.preload = {
     return exportExcel(data);
   },
   getSettings: async () => {
-    return utools.dbStorage.getItem("settings") || { secretKey: "", apiKey: "", iOCR: [] };
+    return utools.dbStorage.getItem("settings") || { secretKey: "", apiKey: "", iOCR: [], email: {} };
   },
   saveSettings: async (settings: Settings) => {
     // 确保传递的对象是一个简单的 JSON 对象
@@ -308,7 +442,11 @@ window.preload = {
       apiKey: settings.apiKey,
       secretKey: settings.secretKey,
       iOCR: settings.iOCR,
+      email: settings.email,
     };
     utools.dbStorage.setItem("settings", settingsToSave);
+  },
+  fetchEmailAttachments: (config: Settings["email"]) => {
+    return fetchEmailAttachments(config);
   },
 };

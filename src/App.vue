@@ -53,6 +53,7 @@
       <button class="secondary" @click="clearFiles">清空</button>
       <button class="primary" @click="triggerFileInput">{{ hasFiles ? "继续添加" : "上传文件" }}</button>
       <button class="primary" @click="captureScreen">截图上传</button>
+      <button class="primary" @click="fetchEmailInvoices">邮箱拉取</button>
 
       <!-- 修改一键识别按钮和更多选项 -->
       <div class="split-button-container">
@@ -78,15 +79,45 @@
   <div v-if="showSettings" class="modal">
     <div class="modal-content">
       <h2>设置</h2>
-      <p class="red-text">请参考 https://ai.baidu.com/ai-doc/OCR/dk3iqnq51 获取 API Key 和 Secret Key</p>
-      <div class="form-group">
-        <label for="apiKey">API Key:</label>
-        <input type="text" id="apiKey" v-model="settings.apiKey" />
+      <div class="tabs">
+        <div class="tab" :class="{ active: activeTab === 'invoice' }" @click="activeTab = 'invoice'">发票识别</div>
+        <div class="tab" :class="{ active: activeTab === 'email' }" @click="activeTab = 'email'">收票邮箱</div>
       </div>
-      <div class="form-group">
-        <label for="secretKey">Secret Key:</label>
-        <input type="text" id="secretKey" v-model="settings.secretKey" />
+
+      <!-- 发票识别设置 -->
+      <div v-if="activeTab === 'invoice'">
+        <p class="red-text">请参考 https://ai.baidu.com/ai-doc/OCR/dk3iqnq51 获取 API Key 和 Secret Key</p>
+        <div class="form-group">
+          <label for="apiKey">API Key:</label>
+          <input type="text" id="apiKey" v-model="settings.apiKey" />
+        </div>
+        <div class="form-group">
+          <label for="secretKey">Secret Key:</label>
+          <input type="text" id="secretKey" v-model="settings.secretKey" />
+        </div>
       </div>
+
+      <!-- 收票邮箱设置 -->
+      <div v-if="activeTab === 'email'">
+        <p class="red-text">请在邮箱设置中开启IMAP服务并获取授权码</p>
+        <div class="form-group">
+          <label for="emailAddress">邮箱地址:</label>
+          <input type="email" id="emailAddress" v-model="settings.email.address" placeholder="例如：example@163.com" />
+        </div>
+        <div class="form-group">
+          <label for="emailPassword">登录密码:</label>
+          <input type="password" id="emailPassword" v-model="settings.email.password" placeholder="第三方客户端登录密码" />
+        </div>
+        <div class="form-group">
+          <label for="imapServer">服务器地址:</label>
+          <input type="text" id="imapServer" v-model="settings.email.imapServer" placeholder="例如：imap.163.com" />
+        </div>
+        <div class="form-group">
+          <label for="imapPort">服务器端口:</label>
+          <input type="text" id="imapPort" v-model="settings.email.port" placeholder="例如：993" />
+        </div>
+      </div>
+
       <div>
         <button class="primary" @click="saveSettings">保存</button>
         <button class="secondary" @click="closeSettings">取消</button>
@@ -138,6 +169,12 @@ const settings = ref<Settings>({
   secretKey: "",
   apiKey: "",
   iOCR: [],
+  email: {
+    address: "",
+    password: "",
+    imapServer: "",
+    port: "",
+  },
 });
 
 const showError = ref(false);
@@ -146,6 +183,7 @@ const showMoreOptions = ref(false);
 const showCustomIOCRModal = ref(false);
 const newTemplateName = ref("");
 const newTemplateId = ref("");
+const activeTab = ref("invoice");
 
 const triggerFileInput = () => {
   window.preload
@@ -251,6 +289,12 @@ const openSettings = async () => {
     secretKey: currentSettings.secretKey,
     apiKey: currentSettings.apiKey,
     iOCR: currentSettings.iOCR || [],
+    email: {
+      address: currentSettings.email?.address || "",
+      password: currentSettings.email?.password || "",
+      imapServer: currentSettings.email?.imapServer || "",
+      port: currentSettings.email?.port || "",
+    },
   };
   showSettings.value = true;
 };
@@ -269,6 +313,12 @@ const saveSettings = async () => {
         templateName: item.templateName,
         templateSign: item.templateSign,
       })),
+      email: {
+        address: settings.value.email.address,
+        password: settings.value.email.password,
+        imapServer: settings.value.email.imapServer,
+        port: settings.value.email.port,
+      },
     };
 
     await window.preload.saveSettings(settingsToSave);
@@ -339,6 +389,12 @@ const saveCustomIOCR = async () => {
       secretKey: currentSettings.secretKey,
       apiKey: currentSettings.apiKey,
       iOCR: currentSettings.iOCR ? [...currentSettings.iOCR, newIOCR] : [newIOCR],
+      email: {
+        address: currentSettings.email?.address || "",
+        password: currentSettings.email?.password || "",
+        imapServer: currentSettings.email?.imapServer || "",
+        port: currentSettings.email?.port || "",
+      },
     };
 
     // 保存更新后的设置
@@ -347,7 +403,7 @@ const saveCustomIOCR = async () => {
     // 更新 settings 引用
     settings.value = updatedSettings;
 
-    showCustomIOCRModal.value = false;
+    CustomIOCRModal.value = false;
     showMoreOptions.value = false;
     newTemplateName.value = "";
     newTemplateId.value = "";
@@ -358,6 +414,39 @@ const saveCustomIOCR = async () => {
   }
 };
 
+const fetchEmailInvoices = async () => {
+  try {
+    // 检查邮箱设置是否完整
+    if (!settings.value.email.address || !settings.value.email.password || !settings.value.email.imapServer || !settings.value.email.port) {
+      showError.value = true;
+      errorMessage.value = "请先完成邮箱设置";
+      return;
+    }
+
+    // 调用后端接口获取邮件附件
+    const attachments = await window.preload.fetchEmailAttachments({
+      address: settings.value.email.address,
+      password: settings.value.email.password,
+      imapServer: settings.value.email.imapServer,
+      port: settings.value.email.port,
+    });
+    console.log(attachments);
+
+    // 将获取到的附件添加到文件列表中
+    attachments.forEach((attachment: any) => {
+      files.value.push({
+        name: attachment.name,
+        status: "待解析",
+        path: attachment.path,
+      });
+    });
+  } catch (error) {
+    const err = error as Error;
+    showError.value = true;
+    errorMessage.value = `获取邮件附件失败: ${err.message}`;
+  }
+};
+
 onMounted(async () => {
   try {
     const storedSettings = await window.preload.getSettings();
@@ -365,6 +454,12 @@ onMounted(async () => {
       secretKey: storedSettings.secretKey || "",
       apiKey: storedSettings.apiKey || "",
       iOCR: storedSettings.iOCR || [],
+      email: {
+        address: storedSettings.email?.address || "",
+        password: storedSettings.email?.password || "",
+        imapServer: storedSettings.email?.imapServer || "",
+        port: storedSettings.email?.port || "",
+      },
     };
   } catch (error) {
     console.error("初始化设置参数时出错:", error);
@@ -624,5 +719,27 @@ button {
 
 .red-text {
   color: red;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-right: 20px;
+}
+
+.tab:hover {
+  color: #007bff;
+}
+
+.tab.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
 }
 </style>

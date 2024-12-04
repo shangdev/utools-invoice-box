@@ -15,7 +15,9 @@
   "dependencies": {
     "@qc2168/vite-plugin-utools": "^1.5.1",
     "axios": "^1.7.7",
+    "mailparser-mit": "^1.0.0",
     "mime-types": "^2.1.35",
+    "node-imap": "^0.9.6",
     "openai": "^4.68.2",
     "vue": "^3.5.8",
     "xlsx": "^0.18.5"
